@@ -12,11 +12,10 @@ For steps on how to host the bot on your own, and on using the bot itself, see h
  * [Feedparser](https://www.npmjs.com/package/feedparser)		
  * [needle](https://www.npmjs.com/package/needle)
  * [cloudscraper](https://www.npmjs.com/package/cloudscraper)
- * Database Manager (one of two options)		
+ * Datebase Manager (one of two options)		
      * [sqlite3](https://www.npmjs.com/package/sqlite3) (default)		
      * [mysql](https://www.npmjs.com/package/mysql)
 
 #### Customization Functions
- * [striptags](https://www.npmjs.com/package/striptags) - Remove HTML content
- * [entities](https://www.npmjs.com/package/entities) - Replace HTML content
+ * [html-to-text](https://www.npmjs.com/package/html-to-text) - Convert HTML content
  * [moment-timezone](https://www.npmjs.com/package/moment-timezone) - Customizable timezones

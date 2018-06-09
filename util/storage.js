@@ -6,15 +6,22 @@ const currentGuilds = new Map()
 const linkTracker = {}
 const allScheduleWords = []
 let deletedFeeds = []
-let cookieAccessors
-let overriddenGuilds
-let blacklistGuilds
-let failedLinks
+let cookieAccessors = {ids: []} // User IDs
+let webhookAccessors = {ids: []} // Guild IDs
+let overriddenGuilds = {}
+let blacklistGuilds = {ids: []}
+let failedLinks = {}
 
 try {
   cookieAccessors = JSON.parse(fs.readFileSync('./settings/cookieAccessors.json'))
 } catch (e) {
   cookieAccessors = {ids: []}
+}
+
+try {
+  webhookAccessors = JSON.parse(fs.readFileSync('./settings/webhookAccessors.json'))
+} catch (e) {
+  webhookAccessors = {ids: []}
 }
 
 try {
@@ -42,6 +49,8 @@ exports.currentGuilds = currentGuilds // To hold all guild profiles
 exports.deletedFeeds = deletedFeeds // Any deleted rssNames to check during sendToDiscord if it was deleted during a cycle
 
 exports.cookieAccessors = cookieAccessors // If restrictCookies is true in config, this is the list of permitted user IDs
+
+exports.webhookAccessors = webhookAccessors
 
 exports.overriddenGuilds = overriddenGuilds // To track guilds with overridden limits
 
