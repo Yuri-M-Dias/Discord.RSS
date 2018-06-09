@@ -12,7 +12,8 @@
     "defaultGame": "",
     "controllerIds": [],
     "menuColor": 7833753,
-    "deleteMenus": false
+    "deleteMenus": false,
+    "persistGuildProfiles": true
   },
   "feedManagement": {
     "sqlType": "sqlite3",
@@ -26,19 +27,29 @@
     "refreshTimeMinutes": 15,
     "checkTitles": false,
     "timezone": "America/New_York",
-    "timeFormat": "ddd, D MMMM YYYY, h:mm A z",
+    "dateFormat": "ddd, D MMMM YYYY, h:mm A z",
+    "dateLanguage": "en",
+    "dateLanguageList": ["en"],
+    "dateFallback": false,
+    "timeFallback": false,
     "maxFeeds": 5,
     "failLimit": 0,
     "notifyFail": true,
     "sendOldMessages": false,
     "defaultMaxAge": 1,
     "cycleMaxAge": 1,
-    "defaultMessage": ":newspaper:  |  **{title}**\n\n{link}\n\n{subscriptions}"
+    "defaultMessage": ":newspaper:  |  **{title}**\n\n{link}\n\n{subscriptions}",
+    "showRegexErrs": true,
+    "imagePreviews": true,
+    "imageLinksExistence": true,
+    "checkDates": true
   },
-    "advanced": {
+  "advanced": {
     "shards": 1,
     "batchSize": 300,
     "restrictCookies": false,
-    "processorMethod": "single"
+    "restrictWebhooks": false,
+    "processorMethod": "single",
+    "minifyJSON": false
   }
 }

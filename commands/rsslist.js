@@ -32,13 +32,15 @@ module.exports = function (bot, message, command) {
   // Generate the info for each feed as an array, and push into another array
   const currentRSSList = []
   for (var rssName in rssList) {
+    const feed = rssList[rssName]
     let o = {
-      link: rssList[rssName].link,
-      title: rssList[rssName].title,
-      channel: bot.channels.get(rssList[rssName].channel) ? bot.channels.get(rssList[rssName].channel).name : undefined,
-      titleChecks: rssList[rssName].titleChecks === true ? 'Title Checks: Enabled\n' : null
+      link: feed.link,
+      title: feed.title,
+      webhook: feed.webhook ? feed.webhook.id : undefined,
+      channel: bot.channels.get(feed.channel) ? bot.channels.get(feed.channel).name : undefined,
+      titleChecks: feed.titleChecks === true ? 'Title Checks: Enabled\n' : null
     }
-    if (failLimit !== 0) o.status = getFeedStatus(rssList[rssName].link)
+    if (failLimit !== 0) o.status = getFeedStatus(feed.link)
     currentRSSList.push(o)
   }
 
@@ -52,6 +54,7 @@ module.exports = function (bot, message, command) {
     const channelName = currentRSSList[x].channel
     const status = currentRSSList[x].status
     const titleChecks = currentRSSList[x].titleChecks
+    const webhook = currentRSSList[x].webhook
 
     // 7 feeds per embed
     if ((count - 1) !== 0 && (count - 1) / 7 % 1 === 0) {
@@ -59,7 +62,7 @@ module.exports = function (bot, message, command) {
       embedMsg = new Discord.RichEmbed().setColor(config.botSettings.menuColor).setDescription(`Page ${pages.length + 1}\n\u200b`)
     }
 
-    embedMsg.addField(`${count})  ${title}`, `${titleChecks || ''}${status || ''}Channel: #${channelName}\nLink: ${link}`)
+    embedMsg.addField(`${count})  ${title.length > 200 ? title.slice(0, 200) + '[...]' : title}`, `${titleChecks || ''}${status || ''}Channel: #${channelName}\n${webhook ? 'Webhook: ' + webhook + '\n' : ''}Link: ${link}`)
   }
 
   // Push the leftover results into the last embed

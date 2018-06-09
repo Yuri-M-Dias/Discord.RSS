@@ -1,5 +1,5 @@
 const config = require('../config.json')
-const controllerCmds = require('../commands/controller/controllerCmds.js')
+const controllerCmds = require('../commands/controller/main.js')
 const loadCommand = (file) => require(`../commands/${file}.js`)
 const hasPerm = require('../util/hasPerm.js')
 const commandList = require('../util/commandList.json')
@@ -13,7 +13,7 @@ function isBotController (command, author) {
     console.log(`Could not execute command "${command} due to incorrectly defined bot controller."`)
     return false
   }
-  for (var x in controllerList) return (controllerList[x] === author)
+  for (var x in controllerList) if (controllerList[x] === author) return true
   return false
 }
 
@@ -40,5 +40,5 @@ module.exports = function (bot, message) {
   }
 
   // for bot controller commands
-  if (controllerCmds[command] && isBotController(command, message.author.id)) return controllerCmds[command](bot, message)
+  if (controllerCmds[command] && isBotController(command, message.author.id)) return controllerCmds[command][bot.shard ? 'sharded' : 'normal'](bot, message)
 }

@@ -4,13 +4,15 @@ const chooseFeed = require('./util/chooseFeed.js')
 const channelTracker = require('../util/channelTracker.js')
 // embedProperties where [0] = property name, [1] = property description, [2] = internal reference to property
 const embedProperties = [['Color', 'The sidebar color of the embed\nThis MUST be an integer color between 0 and 16777215. See https://www.shodor.org/stella2java/rgbint.html', 'color'],
-                      ['Author Title', 'Title of the embed\nAccepts placeholders.', 'authorTitle'],
+                      ['Author Title', 'Title of the embed\nAccepts placeholders', 'authorTitle'],
+                      ['Author URL', 'Clicking on the Atuhor Title will lead to this URL.\nThis MUST be a link.', 'authorURL'],
                       ['Author Avatar URL', 'The avatar picture to the left of author title.\nThis MUST be a link to an image. If an Author Title is not specified, the Author Avatar URL will not be shown.', 'authorAvatarURL'],
-                      ['Image URL', 'The main image on the bottom of the embed.\nThis MUST be a link to an image, OR an {imageX} placeholder.', 'imageURL'],
-                      ['Thumbnail URL', 'The picture on the right hand side of the embed\nThis MUST be a link to an image, OR an {imageX} placeholder.', 'thumbnailURL'],
-                      ['Message', 'Main message of the embed\nAccepts placeholders.', 'message'],
-                      ['Footer Text', 'The bottom-most text\nAccepts placeholders.', 'footerText'],
-                      ['URL', 'A link that clicking on the title will lead to.\nThis MUST be a link. By default this is set to the feed\'s url', 'url']]
+                      ['Title', 'Subtitle of the embed\nAccepts placeholders', 'title'],
+                      ['Image URL', 'The main image on the bottom of the embed.\nThis MUST be a link to an image, OR an {imageX} placeholder', 'imageURL'],
+                      ['Thumbnail URL', 'The picture on the right hand side of the embed\nThis MUST be a link to an image, OR an {imageX} placeholder', 'thumbnailURL'],
+                      ['Message', 'Main message of the embed\nAccepts placeholders', 'message'],
+                      ['Footer Text', 'The bottom-most text\nAccepts placeholders', 'footerText'],
+                      ['URL', 'Clicking on the Title/Thumbnail will lead to this URL.\nThis MUST be a link. By default this is set to the feed\'s url', 'url']]
 
 const imageFields = ['thumbnailURL', 'authorAvatarURL', 'imageURL']
 const currentGuilds = require('../util/storage.js').currentGuilds
@@ -18,14 +20,21 @@ const currentGuilds = require('../util/storage.js').currentGuilds
 // Check valid image URLs via extensions
 function isValidImg (input) {
   if (input.startsWith('http')) {
-    var matches = input.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i)
+    const matches = input.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i)
     if (matches) return true
     else return false
-  } else if (input.startsWith('{image')) {
-    if (input.length !== 8) return false
-    let imgNum = parseInt(input.substr(6, 1), 10)
-    if (!isNaN(imgNum) && imgNum > 0) return true
-    else return false
+  } else if (input.startsWith('{')) {
+    const results = input.startsWith('{image') ? input.search(/^{image[1-9](\|\|(.+))*}$/) : input.search(/^{(description|image|title):image[1-5](\|\|(.+))*}$/)
+    if (results === -1) return false
+    const arr = input.split('||')
+    if (arr.length === 1) return true
+    let valid = true
+    for (var x in arr) {
+      if (!valid) continue
+      const term = x === '0' ? `${arr[x]}}` : x === (arr.length - 1).toString() ? `{${arr[x]}` : `{${arr[x]}}`
+      if (!isValidImg(term)) valid = false
+    }
+    return valid
   } else return false
 }
 
@@ -38,21 +47,24 @@ module.exports = function (bot, message, command) {
     function resetAll (collector) {
       return message.channel.send(`Resetting and disabling embed...`)
       .then(function (resetting) {
-        collector.stop()
+        collector.stop('endMenu')
         delete rssList[rssName].embedMessage
         if (rssList[rssName].message === '{empty}') delete rssList[rssName].message // An empty message is not allowed if there is no embed
         fileOps.updateFile(message.guild.id, guildRss)
         console.log(`Embed Customization: (${message.guild.id}, ${message.guild.name}) => Embed reset for ${rssList[rssName].link}.`)
         resetting.edit(`Embed has been disabled, and all properties have been removed for <${rssList[rssName].link}>.`).catch(err => console.log(`Promise Warning: rssEmbed 2a: ${err}`))
-      }).catch(err => console.log(`Promise Warning: rssEmbed 2: ${err}`))
+      }).catch(err => {
+        collector.stop()
+        console.log(`Promise Warning: rssEmbed 2: ${err}`)
+      })
     }
 
     // Reset an individual property
     function reset (collector, choice) {
-      return message.channel.send(`Retting property \`${choice}\`...`)
+      return message.channel.send(`Resetting property \`${choice}\`...`)
       .then(function (resetting) {
         collector.stop()
-        if (!rssList[rssName].embedMessage || !rssList[rssName].embedMessage.properties || !rssList[rssName].embedMessage.properties[choice]) return message.channel.send('This property has nothing to reset.').catch(err => console.log(`Promise Warning: rssEmbed 2b: ${err}`))
+        if (!rssList[rssName].embedMessage || !rssList[rssName].embedMessage.properties || !rssList[rssName].embedMessage.properties[choice]) return resetting.edit('This property has nothing to reset.').catch(err => console.log(`Promise Warning: rssEmbed 2b: ${err}`))
         delete rssList[rssName].embedMessage.properties[choice]
         if (rssList[rssName].embedMessage.properties.size() === 0) {
           delete rssList[rssName].embedMessage
@@ -61,7 +73,10 @@ module.exports = function (bot, message, command) {
         fileOps.updateFile(message.guild.id, guildRss)
         console.log(`Embed Customization: (${message.guild.id}, ${message.guild.name}) => Property '${choice}' reset for ${rssList[rssName].link}.`)
         resetting.edit(`Settings updated. The property \`${choice}\` has been reset for <${rssList[rssName].link}>.`).catch(err => console.log(`Promise Warning: rssEmbed 8a: ${err}`))
-      }).catch(err => console.log(`Promise Warning: rssEmbed 8: ${err}`))
+      }).catch(err => {
+        console.log(`Promise Warning: rssEmbed 8: ${err}`)
+        collector.stop()
+      })
     }
 
     // Generate list of all embed properties for user to see
@@ -119,7 +134,7 @@ module.exports = function (bot, message, command) {
           propertyCollect.on('collect', function (propSetting) {
             msgHandler.add(propSetting)
             // Define the new property here
-            var finalChange = propSetting.content
+            var finalChange = propSetting.content.trim()
             if (finalChange.toLowerCase() === 'exit') return propertyCollect.stop('Embed customization menu closed.')
             else if (finalChange.toLowerCase() === 'reset') return reset(propertyCollect, choice)
             else if (choice === 'color') {
@@ -152,9 +167,9 @@ module.exports = function (bot, message, command) {
       })
       customCollect.on('end', function (collected, reason) {
         channelTracker.remove(message.channel.id)
-        if (reason === 'user') return // Do not execute msgHandler.deleteAll if is user, since this means menu series proceeded to the next step and has not ended
+        if (reason === 'user') return // Do not execute msgHandler.deleteAll if is user, since this means menu series proceeded to the next step and has not ended, unless reason is 'endMenu'
         if (reason === 'time') message.channel.send(`I have closed the menu due to inactivity.`).catch(err => console.log(`Promise Warning: Unable to send expired menu message (${err})`))
-        else if (reason !== 'user') message.channel.send(reason).then(m => m.delete(6000))
+        else if (reason !== 'user' && reason !== 'endMenu') message.channel.send(reason).then(m => m.delete(6000))
         msgHandler.deleteAll(message.channel)
       })
     }).catch(err => console.log(`Commands Warning: (${message.guild.id}, ${message.guild.name}) => Could not send embed customization prompt. (${err})`))

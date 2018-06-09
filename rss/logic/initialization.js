@@ -1,6 +1,7 @@
 const config = require('../../config.json')
 const sqlCmds = require('../sql/commands.js')
 const moment = require('moment-timezone')
+const defaultConfigs = require('../../util/configCheck.js').defaultConfigs
 
 function getArticleId (articleList, article) {
   let equalGuids = (articleList.length > 1) // default to true for most feeds
@@ -45,9 +46,18 @@ module.exports = function (con, rssList, articleList, link, callback) {
             const cutoffDay = (rssList[rssName].maxAge) ? moment().subtract(rssList[rssName].maxAge, 'days') : moment().subtract(defaultMaxAge, 'days')
 
             if (articleList[x].pubdate >= cutoffDay) checkTable(articleList[x], getArticleId(articleList, articleList[x]))
-            else if (articleList[x].pubdate < cutoffDay || articleList[x].pubdate.toString() === 'Invalid Date') {
+            else if (articleList[x].pubdate < cutoffDay) {
               checkTable(articleList[x], getArticleId(articleList, articleList[x]), true)
-            }
+            } else if (articleList[x].pubdate.toString() === 'Invalid Date') {
+              let checkDate = false
+              const globalSetting = config.feedSettings.checkDates != null ? config.feedSettings.checkDates : defaultConfigs.feedSettings.checkDates.default
+              checkDate = globalSetting
+              const specificSetting = rssList[rssName].checkDates
+              checkDate = typeof specificSetting !== 'boolean' ? checkDate : specificSetting
+
+              if (checkDate) checkTable(articleList[x], getArticleId(articleList, articleList[x]), true) // Mark as old if date checking is enabled
+              else checkTable(articleList[x], getArticleId(articleList, articleList[x])) // Otherwise mark it new
+            } else checkTable(articleList[x], getArticleId(articleList, articleList[x]), true)
           }
         }
       })
@@ -70,7 +80,12 @@ module.exports = function (con, rssList, articleList, link, callback) {
         if (err) return callback(err)
         if (IdMatches.length > 0) return seenArticle(true)
 
-        if ((config.feedSettings.checkTitles !== true && rssList[rssName].checkTitles !== true) || (config.feedSettings.checkTitles === false && rssList[rssName].checkTitles !== true)) return seenArticle(false)
+        let check = false
+        const globalSetting = config.feedSettings.checkTitles != null ? config.feedSettings.checkTitles : defaultConfigs.feedSettings.checkTitles.default
+        check = globalSetting
+        const specificSetting = rssList[rssName].checkTitles
+        check = typeof specificSetting !== 'boolean' ? check : specificSetting
+        if (!check) return seenArticle(false)
 
         sqlCmds.selectTitle(con, rssName, article.title, function (err, titleMatches) {
           if (err) return callback(err)

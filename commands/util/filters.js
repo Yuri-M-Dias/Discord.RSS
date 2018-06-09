@@ -53,7 +53,11 @@ exports.add = function (message, rssName, role, msgHandler) {
 
       // Valid filter category was chosen
       filterTypeCollect.stop()
-      message.channel.send(`Type the filter word/phrase you would like to add in the category \`${chosenFilterType}\` by typing it, type multiple word/phrases on different lines to add more than one, or type \`{exit}\` to cancel. Broad filters can be used by adding \`~\` to the front, which will trigger even if they are found embedded inside words/phrases. The filter will be applied as **case insensitive** to feeds.`)
+      message.channel.send(`Type the filter word/phrase you would like to add in the category \`${chosenFilterType}\` by typing it, type multiple word/phrases on different lines to add more than one, or type \`{exit}\` to cancel. The following can be added in front of a search term to change its behavior:\n\n
+\`~\` - Broad filter modifier to trigger even if the term is found embedded inside words/phrases.
+\`!\` - NOT filter modifier to do the opposite of a normal search term. Can be added in front of any term, including one with broad filter mod.
+\`\\\` - Escape symbol added before modifiers to interpret them as regular characters and not modifiers.\n\n
+Filters will be applied as **case insensitive** to feeds.`)
       .then(function (m) {
         msgHandler.add(m)
         const filterCollect = message.channel.createMessageCollector(filter, {time: 240000})
@@ -84,14 +88,16 @@ exports.add = function (message, rssName, role, msgHandler) {
 
             if (!role) {
               console.log(`RSS Filters: (${message.guild.id}, ${message.guild.name}) => New filter(s) [${addedList.trim().split('\n')}] added to '${chosenFilterType}' for ${rssList[rssName].link}.`)
-              let msg = `The following filter(s) have been successfully added for the filter category \`${chosenFilterType}\`:\`\`\`\n\n${addedList}\`\`\``
-              if (invalidItems) msg += `\n\nThe following filter(s) could not be added because they already exist:\n\`\`\`\n\n${invalidItems}\`\`\``
-              editing.edit(`${msg}\n\nYou may test your filters via \`${config.botSettings.prefix}rsstest\` and see what feeds pass through.`).catch(err => console.log(`Promise Warning: filterAdd 4a: ${err}`))
+              let msg = `The following filter(s) have been successfully added for the filter category \`${chosenFilterType}\`:\`\`\`\n\n${addedList}\`\`\`You may test random articles with \`${config.botSettings.prefix}rsstest\`, or specifically send filtered articles with \`${config.botSettings.prefix}rssfilters\` option 5.`
+              if (invalidItems) {
+                msg += `\n\nThe following filter(s) could not be added because they already exist:\n\`\`\`\n\n${invalidItems}\`\`\``
+                editing.edit(msg).catch(err => console.log(`Promise Warning: filterAdd 4a1: ${err}`))
+              } else editing.edit(`${msg}\n\nYou may test your filters via \`${config.botSettings.prefix}rsstest\` and see what feeds pass through.`).catch(err => console.log(`Promise Warning: filterAdd 4a: ${err}`))
             } else {
               console.log(`RSS Roles: (${message.guild.id}, ${message.guild.name}) => Role (${role.id}, ${role.name}) => New filter(s) [${addedList.trim().split('\n')}] added to '${chosenFilterType}' for ${rssList[rssName].link}.`)
               let msg = `Subscription updated for role \`${role.name}\`. The following filter(s) have been successfully added for the filter category \`${chosenFilterType}\`:\`\`\`\n\n${addedList}\`\`\``
               if (invalidItems) msg += `\n\nThe following filter(s) could not be added because they already exist:\n\`\`\`\n\n${invalidItems}\`\`\``
-              editing.edit(`${msg}\n\nYou may test your filters via \`${config.botSettings.prefix}rsstest\` and see what feeds will mention the role`).catch(err => console.log(`Promise Warning: filterAdd 4b: ${err}`))
+              editing.edit(`${msg}\n\nYou may test your filters on random articles via \`${config.botSettings.prefix}rsstest\` and see what articles will mention the role`).catch(err => console.log(`Promise Warning: filterAdd 4b: ${err}`))
             }
           })
           .catch(err => console.log(`Promise Warning: filterAdd 4: ${err}`))

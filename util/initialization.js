@@ -42,10 +42,13 @@ module.exports = function (bot, callback) {
   const sourceList = new Map()
   const regBatchList = []
   const modBatchList = []
-  const batchSize = (config.advanced && config.advanced.batchSize) ? config.advanced.batchSize : 400
+  const batchSize = 100
   const failLimit = (config.feedSettings.failLimit && !isNaN(parseInt(config.feedSettings.failLimit, 10))) ? parseInt(config.feedSettings.failLimit, 10) : 0
+  const guildsInfo = {}
 
   let con
+  let cycleFailCount = 0
+  let cycleTotalCount = 0
 
   function addFailedFeed (link) {
     if (!failedLinks[link]) failedLinks[link] = 1
@@ -54,7 +57,7 @@ module.exports = function (bot, callback) {
 
   function reachedFailCount (link) {
     let failed = typeof failedLinks[link] === 'string' || (typeof failedLinks[link] === 'number' && failedLinks[link] >= failLimit) // string indicates it has reached the fail count, and is the date of when it failed
-    if (failed) console.log(`INIT Warning: Feeds with link ${link} will be skipped due to reaching fail limit (${failLimit}).`)
+    if (failed && config.logging.showFailedFeeds !== false) console.log(`INIT Warning: Feeds with link ${link} will be skipped due to reaching fail limit (${failLimit}).`)
     return failed
   }
 
@@ -137,6 +140,7 @@ module.exports = function (bot, callback) {
         checkGuild.names(bot, guildId)
       }
       addToSourceLists(rssList, guildId)
+      guildsInfo[guildId] = guildRss
     } catch (err) { return fileOps.checkBackup(err, guildId) }
   }
 
@@ -230,10 +234,14 @@ module.exports = function (bot, callback) {
           if (err) console.log(err)
         })
       }
-      if (linkCompletion.status === 'failed' && failLimit !== 0) addFailedFeed(linkCompletion.link)
+      if (linkCompletion.status === 'failed') {
+        cycleFailCount++
+        if (failLimit !== 0) addFailedFeed(linkCompletion.link)
+      }
       if (linkCompletion.status === 'success' && failedLinks[linkCompletion.link]) delete failedLinks[linkCompletion.link]
 
       completedLinks++
+      cycleTotalCount++
       console.log(`${bot.shard ? 'SH ' + bot.shard.id + ' ' : ''}Batch ${batchNumber + 1} (${type}) Progress: ${completedLinks}/${currentBatch.size}`)
 
       if (completedLinks === currentBatch.size) {
@@ -309,11 +317,16 @@ module.exports = function (bot, callback) {
   }
 
   function finishInit () {
-    if (bot.shard) bot.shard.send({type: 'initComplete'})
-    console.log(`${bot.shard ? 'SH ' + bot.shard.id + ' ' : ''}INIT Info: Finished initialization cycle.`)
+    console.log(`${bot.shard ? 'SH ' + bot.shard.id + ' ' : ''}INIT Info: Finished initialization cycle.${cycleFailCount > 0 ? ' (' + cycleFailCount + '/' + cycleTotalCount + ' failed)' : ''}`)
 
-    try { fs.writeFileSync('./settings/failedLinks.json', JSON.stringify(failedLinks, null, 2)) } catch (e) { console.log(`Unable to update failedLinks.json on end of initialization, reason: ${e}`) }
+    if (bot.shard) {
+      bot.shard.broadcastEval(`require(require('path').dirname(require.main.filename) + '/util/storage.js').failedLinks = JSON.parse('${JSON.stringify(failedLinks)}');`)
+      .then(() => {
+        try { fs.writeFileSync('./settings/failedLinks.json', JSON.stringify(failedLinks, null, 2)) } catch (e) { console.log(`Unable to update failedLinks.json on end of initialization. `, e.message || e) }
+      })
+      .catch(err => console.log(`Error: Unable to broadcast eval failedLinks update on initialization end for shard ${bot.shard.id}. `, err.message || err))
+    } else try { fs.writeFileSync('./settings/failedLinks.json', JSON.stringify(failedLinks, null, 2)) } catch (e) { console.log(`Unable to update failedLinks.json on end of initialization. `, e.message || e) }
 
-    callback()
+    callback(guildsInfo)
   }
 }

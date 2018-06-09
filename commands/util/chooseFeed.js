@@ -11,7 +11,7 @@ const MsgHandler = require('../../util/MsgHandler.js')
 
 function getFeedStatus (link, failLimit) {
   const failCount = failedLinks[link]
-  if ((!failCount || typeof failCount === 'number') && (failCount < failLimit)) return `Status: OK ${failCount > Math.ceil(failLimit / 10) ? '(' + failCount + '/' + failLimit + ')' : ''}\n`
+  if (!failCount || (typeof failCount === 'number' && failCount <= failLimit)) return `Status: OK ${failCount > Math.ceil(failLimit / 10) ? '(' + failCount + '/' + failLimit + ')' : ''}\n`
   else return `Status: FAILED\n`
 }
 
@@ -21,7 +21,6 @@ module.exports = function (bot, message, command, callback, miscOption, firstMsg
 
   const rssList = guildRss.sources
   const maxFeedsAllowed = overriddenGuilds[message.guild.id] != null ? overriddenGuilds[message.guild.id] === 0 ? 'Unlimited' : overriddenGuilds[message.guild.id] : (!config.feedSettings.maxFeeds || isNaN(parseInt(config.feedSettings.maxFeeds, 10))) ? 'Unlimited' : config.feedSettings.maxFeeds
-
   let embedMsg = new Discord.RichEmbed()
     .setColor(config.botSettings.menuColor)
     .setAuthor('Feed Selection Menu')
@@ -33,7 +32,17 @@ module.exports = function (bot, message, command, callback, miscOption, firstMsg
   for (var rssName in rssList) { // Generate the info for each feed as an object, and push into array to be used in pages that are sent
     let o = {link: rssList[rssName].link, rssName: rssName, title: rssList[rssName].title}
     if (commandList[command].action === 'Refresh Feed') o.status = getFeedStatus(rssList[rssName].link, failLimit)
-    if (miscOption === 'titleChecks') o.titleChecks = rssList[rssName].checkTitles === true ? 'Title Checks: Enabled\n' : 'Title Checks: Disabled\n'
+    if (miscOption === 'imagePreviews' || miscOption === 'imageLinksExistence' || miscOption === 'checkTitles' || miscOption === 'checkDates') {
+      const statusText = miscOption === 'imagePreviews' ? 'Image Link Previews: ' : miscOption === 'imageLinksExistence' ? 'Image Links Existence: ' : miscOption === 'checkTitles' ? 'Title Checks: ' : 'Date Checks: '
+      let decision = ''
+
+      const globalSetting = config.feedSettings[miscOption]
+      decision = globalSetting ? `${statusText} Enabled\n` : `${statusText} Disabled\n`
+      const specificSetting = rssList[rssName][miscOption]
+      decision = typeof specificSetting !== 'boolean' ? decision : specificSetting === true ? `${statusText} Enabled\n` : `${statusText} Disabled\n`
+
+      o[miscOption] = decision
+    }
     if (message.channel.id === rssList[rssName].channel) currentRSSList.push(o)
   }
 
@@ -47,16 +56,15 @@ module.exports = function (bot, message, command, callback, miscOption, firstMsg
     const count = parseInt(x, 10) + 1
     const link = currentRSSList[x].link
     const title = currentRSSList[x].title
-    const status = currentRSSList[x].status
-    const titleChecks = currentRSSList[x].titleChecks
+    const status = currentRSSList[x].status || ''
+    const miscOption = currentRSSList[x].checkTitles || currentRSSList[x].imagePreviews || currentRSSList[x].imageLinksExistence || currentRSSList[x].checkDates || ''
 
-    // 10 feeds per embed (AKA page)
+    // 7 feeds per embed (AKA page)
     if ((count - 1) !== 0 && (count - 1) / 7 % 1 === 0) {
       pages.push(embedMsg)
       embedMsg = new Discord.RichEmbed().setColor(config.botSettings.menuColor).setDescription(`Page ${pages.length + 1}`)
     }
-
-    embedMsg.addField(`${count})  ${title}`, `${titleChecks || ''}${status || ''}Link: ${link}`)
+    embedMsg.addField(`${count})  ${title.length > 200 ? title.slice(0, 200) + ' [...]' : title}`, `${miscOption}${status}Link: ${link}`)
   }
 
   // Push the leftover results into the last embed
